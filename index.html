@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FastRevendas — Cobranças PIX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3348;
+      --accent: #4f8ef7;
+      --accent-hover: #6ba3ff;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --gray: #6b7280;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --radius: 10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 64px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 800px;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header span {
+      font-size: 0.8rem;
+      background: var(--accent);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .main {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.75rem;
+    }
+
+    /* API Key setup */
+    .api-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .api-row input {
+      flex: 1;
+    }
+
+    /* Form */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    input, select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    input::placeholder {
+      color: var(--gray);
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    button:hover { background: var(--accent-hover); }
+    button:disabled { background: var(--gray); cursor: not-allowed; }
+
+    .btn-full { width: 100%; padding: 12px; font-size: 1rem; margin-top: 4px; }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .btn-ghost:hover { background: var(--surface2); }
+
+    /* Notice */
+    .notice {
+      background: rgba(79,142,247,0.1);
+      border: 1px solid rgba(79,142,247,0.3);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* Result box */
+    #result-box {
+      display: none;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-pending  { background: rgba(245,158,11,0.15); color: var(--yellow); }
+    .status-approved { background: rgba(79,142,247,0.15); color: var(--accent); }
+    .status-paid     { background: rgba(34,197,94,0.15);  color: var(--green); }
+    .status-expired  { background: rgba(107,114,128,0.15);color: var(--gray); }
+    .status-cancelled{ background: rgba(239,68,68,0.15);  color: var(--red); }
+    .status-default  { background: rgba(107,114,128,0.15);color: var(--gray); }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .info-item label {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .info-item span {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .qr-section {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .qr-section img {
+      width: 160px;
+      height: 160px;
+      border-radius: 8px;
+      border: 3px solid var(--surface2);
+      flex-shrink: 0;
+    }
+
+    .qr-right {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .copy-field {
+      display: flex;
+      gap: 6px;
+    }
+
+    .copy-field input {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* Transactions list */
+    .tx-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tx-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .tx-item:hover { border-color: var(--accent); }
+
+    .tx-item .tx-left { flex: 1; }
+    .tx-item .tx-id { font-size: 0.75rem; color: var(--gray); }
+    .tx-item .tx-amount { font-weight: 700; font-size: 1.05rem; }
+    .tx-item .tx-date { font-size: 0.75rem; color: var(--text-muted); }
+
+    .tx-actions { display: flex; gap: 6px; align-items: center; }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 32px;
+      font-size: 0.9rem;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 0.85rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: transform 0.25s, opacity 0.25s;
+      z-index: 999;
+      max-width: 320px;
+    }
+
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-left: 3px solid var(--green); }
+    #toast.error   { border-left: 3px solid var(--red); }
+    #toast.info    { border-left: 3px solid var(--accent); }
+
+    .loader {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .section-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .section-actions h2 { margin-bottom: 0; flex: 1; }
+
+    @media (max-width: 560px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .info-grid { grid-template-columns: 1fr; }
+      .qr-section { flex-direction: column; }
+      .api-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ FastRevendas</h1>
+  <span>PIX</span>
+</header>
+
+<div class="main">
+
+  <!-- API Key -->
+  <div class="card" id="config-card">
+    <h2>Configuração</h2>
+    <div class="api-row">
+      <input type="password" id="api-key" placeholder="fdpx_sua_chave_api_aqui" autocomplete="off" />
+      <button onclick="saveKey()">Salvar</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--gray);margin-top:8px;">A chave é salva apenas no seu navegador (localStorage).</p>
+  </div>
+
+  <!-- Criar Fatura -->
+  <div class="card">
+    <h2>Nova Cobrança</h2>
+
+    <div class="notice">
+      Para valores abaixo de R$ 500, o CPF é opcional. Para R$ 500 ou mais, nome e CPF são obrigatórios.
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Valor (R$) *</label>
+        <input type="number" id="amount" min="10" step="0.01" placeholder="100.00" />
+      </div>
+
+      <div class="form-group">
+        <label>Nome do pagador</label>
+        <input type="text" id="payer-name" placeholder="João Silva" />
+      </div>
+
+      <div class="form-group">
+        <label>CPF / CNPJ</label>
+        <input type="text" id="cpf-cnpj" placeholder="12345678901" maxlength="18" />
+      </div>
+
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="user-type">
+          <option value="individual">Pessoa Física</option>
+          <option value="company">Pessoa Jurídica</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-full" id="create-btn" onclick="createTransaction()">Gerar Cobrança PIX</button>
+  </div>
+
+  <!-- Resultado da última cobrança -->
+  <div class="card" id="result-box">
+    <div class="result-header">
+      <h2 style="margin-bottom:0">Cobrança Gerada</h2>
+      <span id="result-status" class="status-badge status-pending">pending</span>
+      <button class="btn-sm btn-ghost" onclick="refreshStatus()">↻ Atualizar</button>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-item">
+        <label>Valor</label>
+        <span id="res-amount">—</span>
+      </div>
+      <div class="info-item">
+        <label>ID da transação</label>
+        <span id="res-id">—</span>
+      </div>
+      <div class="info-item">
+        <label>Criada em</label>
+        <span id="res-created">—</span>
+      </div>
+      <div class="info-item">
+        <label>Expira em</label>
+        <span id="res-expires">—</span>
+      </div>
+    </div>
+
+    <div class="qr-section">
+      <img id="res-qr-img" src="" alt="QR Code PIX" />
+      <div class="qr-right">
+        <div>
+          <label style="margin-bottom:6px;display:block">Link da fatura (QR Code URL)</label>
+          <div class="copy-field">
+            <input type="text" id="res-qr-url" readonly />
+            <button class="btn-sm" onclick="copy('res-qr-url')">Copiar</button>
+          </div>
+        </div>
+        <div>
+          <label style="margin-bottom:6px;display:block">Código PIX Copia e Cola</label>
+          <div class="copy-field">
+            <input type="text" id="res-pix-code" readonly />
+            <button class="btn-sm" onclick="copy('res-pix-code')">Copiar</button>
+          </div>
+        </div>
+        <button class="btn-sm btn-ghost" onclick="openQrUrl()">Abrir link da fatura ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Histórico -->
+  <div class="card">
+    <div class="section-actions">
+      <h2>Histórico de Cobranças</h2>
+      <button class="btn-sm btn-ghost" onclick="loadTransactions()">↻ Atualizar</button>
+    </div>
+    <div id="tx-list" class="tx-list">
+      <div class="empty-state">Salve sua chave API e clique em Atualizar para carregar o histórico.</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const BASE = 'https://fastdepix.space/api/v1';
+let currentTxId = null;
+
+// ── Key management ────────────────────────────────────────────────────────────
+
+function getKey() { return localStorage.getItem('fdpx_key') || ''; }
+
+function saveKey() {
+  const val = document.getElementById('api-key').value.trim();
+  if (!val) return toast('Informe a chave API', 'error');
+  localStorage.setItem('fdpx_key', val);
+  document.getElementById('api-key').value = '';
+  toast('Chave salva!', 'success');
+  loadTransactions();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (getKey()) loadTransactions();
+});
+
+// ── API helper ────────────────────────────────────────────────────────────────
+
+async function api(method, path, body) {
+  const key = getKey();
+  if (!key) { toast('Configure sua chave API primeiro', 'error'); return null; }
+
+  const opts = {
+    method,
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body) opts.body = JSON.stringify(body);
+
+  try {
+    const res = await fetch(BASE + path, opts);
+    return await res.json();
+  } catch (e) {
+    toast('Erro de rede: ' + e.message, 'error');
+    return null;
+  }
+}
+
+// ── Create transaction ────────────────────────────────────────────────────────
+
+async function createTransaction() {
+  const amount = parseFloat(document.getElementById('amount').value);
+  const name   = document.getElementById('payer-name').value.trim();
+  const cpf    = document.getElementById('cpf-cnpj').value.replace(/\D/g, '');
+  const type   = document.getElementById('user-type').value;
+
+  if (!amount || amount < 10) return toast('Valor mínimo: R$ 10,00', 'error');
+  if (amount >= 500 && (!name || !cpf)) return toast('Para valores ≥ R$ 500, nome e CPF são obrigatórios', 'error');
+
+  const payload = { amount };
+
+  if (name || cpf) {
+    payload.user = { user_type: type };
+    if (name) payload.user.name = name;
+    if (cpf)  payload.user.cpf_cnpj = cpf;
+  }
+
+  setLoading('create-btn', true);
+  const data = await api('POST', '/transactions', payload);
+  setLoading('create-btn', false);
+
+  if (!data) return;
+  if (!data.success) return toast(data.message || 'Erro ao criar transação', 'error');
+
+  currentTxId = data.data.id;
+  renderResult(data.data);
+  toast('Cobrança criada!', 'success');
+  loadTransactions();
+}
+
+// ── Render result ─────────────────────────────────────────────────────────────
+
+function renderResult(tx) {
+  document.getElementById('result-box').style.display = 'block';
+
+  document.getElementById('res-amount').textContent = formatMoney(tx.amount);
+  document.getElementById('res-id').textContent = '#' + tx.id;
+  document.getElementById('res-created').textContent = formatDate(tx.created_at);
+  document.getElementById('res-expires').textContent = formatDate(tx.qr_code_expires_at);
+
+  setStatus('result-status', tx.status);
+
+  const qrUrl = tx.qr_code || '';
+  const pixCode = tx.qr_code_text || '';
+
+  document.getElementById('res-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(pixCode || qrUrl)}`;
+  document.getElementById('res-qr-url').value = qrUrl;
+  document.getElementById('res-pix-code').value = pixCode;
+}
+
+async function refreshStatus() {
+  if (!currentTxId) return toast('Nenhuma cobrança ativa', 'error');
+  const data = await api('GET', `/transactions/${currentTxId}`);
+  if (!data || !data.success) return toast('Erro ao buscar status', 'error');
+  renderResult(data.data);
+  toast('Status atualizado: ' + data.data.status, 'info');
+}
+
+function openQrUrl() {
+  const url = document.getElementById('res-qr-url').value;
+  if (url) window.open(url, '_blank');
+}
+
+// ── Transactions list ─────────────────────────────────────────────────────────
+
+async function loadTransactions() {
+  if (!getKey()) return;
+
+  const container = document.getElementById('tx-list');
+  container.innerHTML = '<div class="empty-state"><span class="loader"></span> Carregando...</div>';
+
+  const data = await api('GET', '/transactions?limit=20');
+  if (!data || !data.success) {
+    container.innerHTML = '<div class="empty-state">Erro ao carregar transações.</div>';
+    return;
+  }
+
+  const txs = data.data?.transactions || [];
+  if (!txs.length) {
+    container.innerHTML = '<div class="empty-state">Nenhuma transação encontrada.</div>';
+    return;
+  }
+
+  container.innerHTML = txs.map(tx => `
+    <div class="tx-item" onclick="loadTxDetail(${tx.id})">
+      <div class="tx-left">
+        <div class="tx-id">#${tx.id}</div>
+        <div class="tx-amount">${formatMoney(tx.amount)}</div>
+        <div class="tx-date">${formatDate(tx.created_at)}</div>
+      </div>
+      <div class="tx-actions">
+        <span class="status-badge ${statusClass(tx.status)}">${tx.status}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadTxDetail(id) {
+  const data = await api('GET', `/transactions/${id}`);
+  if (!data || !data.success) return toast('Erro ao carregar detalhes', 'error');
+  currentTxId = id;
+  renderResult(data.data);
+  document.getElementById('result-box').scrollIntoView({ behavior: 'smooth' });
+  toast('Cobrança #' + id + ' carregada', 'info');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function copy(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(() => toast('Copiado!', 'success'));
+}
+
+function formatMoney(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDate(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleString('pt-BR');
+}
+
+function statusClass(s) {
+  const map = { pending: 'status-pending', approved: 'status-approved', paid: 'status-paid', expired: 'status-expired', cancelled: 'status-cancelled' };
+  return map[s] || 'status-default';
+}
+
+function setStatus(elId, status) {
+  const el = document.getElementById(elId);
+  el.textContent = status;
+  el.className = 'status-badge ' + statusClass(status);
+}
+
+function setLoading(btnId, on) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = on;
+  btn.innerHTML = on ? '<span class="loader"></span> Gerando...' : 'Gerar Cobrança PIX';
+}
+
+let toastTimer;
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3500);
+}
+</script>
+</body>
+</html>
